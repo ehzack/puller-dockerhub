@@ -45,3 +45,5 @@ coverage
 
 # Yarn
 yarn.lock
+
+token.json
