@@ -12,6 +12,6 @@ let objects = Object.keys(scripts).map((key) => {
 
 fs.writeFileSync(
   path.join(__dirname, './tokens.json'),
-  JSON.stringify(objects),
+  JSON.stringify(objects, null, 2),
   'utf8',
 );
