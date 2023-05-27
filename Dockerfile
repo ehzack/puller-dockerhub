@@ -9,5 +9,5 @@ RUN yarn install
 
 COPY . .
 
-RUN yarn run init
+
 CMD [ "yarn", "start" ]
