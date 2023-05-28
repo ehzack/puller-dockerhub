@@ -21,6 +21,12 @@ app.use(
     },
   }),
 );
+app.use(helmet());
+
+app.use(express.json());
+app.use(cors());
+app.use(compression());
+app.use(boom());
 
 app.post('/trigger', async (req, res) => {
   try {
@@ -50,6 +56,7 @@ app.post('/trigger', async (req, res) => {
       description: `Image ${repo_name} Pulled and Launched successfully`,
     });
   } catch (err) {
+    console.log({ err });
     return res.json({
       state: 'error',
       description: new Error(err).message,
