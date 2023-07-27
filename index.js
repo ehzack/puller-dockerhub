@@ -11,7 +11,7 @@ const morgan = require('morgan');
 const { doVerify } = require('./handler/jwt-handler');
 const scriptRunner = require('./lib/run-script');
 const schema = Joi.object({
-  path: Joi.string().required(),
+  data: Joi.required(),
 });
 
 app.use(
@@ -42,12 +42,25 @@ app.use(
   }),
 );
 
+const parseData = (data, tag) => {
+  if (!data) throw new Error('Invalid Data');
+
+  if (Array.isArray(data)) {
+    const dt = data.find((e) => e.split('|')[1] === tag);
+    if (!dt) throw new Error('Invalid Tag');
+
+    return dt.split('|')[0];
+  }
+
+  return data.split('|')[0];
+};
 app.post('/trigger', async (req, res) => {
   try {
     const {
-      value: { path = '' },
+      value: { data },
       error,
     } = await schema.validate(req.query);
+
     const {
       repository: { repo_name },
       push_data: { tag },
@@ -59,6 +72,8 @@ app.post('/trigger', async (req, res) => {
         description: error,
       });
 
+    const path = parseData(data, tag);
+    console.log({ path });
     console.log({ repo_name, args: [`${repo_name}:${tag}`, path] });
     await scriptRunner({ repo_name, args: [`${repo_name}:${tag}`, path] });
 
