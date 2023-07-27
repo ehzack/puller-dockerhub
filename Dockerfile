@@ -14,6 +14,6 @@ COPY package.json package.json
 RUN yarn install
 
 COPY . .
-
+RUN chmod +x ./scripts/*
 
 CMD [ "yarn", "start" ]
