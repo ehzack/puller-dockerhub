@@ -11,7 +11,7 @@ const morgan = require('morgan');
 const { doVerify } = require('./handler/jwt-handler');
 const scriptRunner = require('./lib/run-script');
 const schema = Joi.object({
-  token: Joi.string().required(),
+  path: Joi.string().required(),
 });
 
 app.use(
@@ -24,19 +24,33 @@ app.use(
 app.use(helmet());
 
 app.use(express.json());
-app.use(cors());
+// app.use(
+//   cors({
+//     origin: 'https://registry.hub.docker.com',
+
+//     methods: ['POST'],
+//     credentials: true,
+//     maxAge: 3600,
+//   }),
+// );
 app.use(compression());
 app.use(boom());
+
+app.use(
+  cors({
+    origin: 'https://registry.hub.docker.com',
+  }),
+);
 
 app.post('/trigger', async (req, res) => {
   try {
     const {
-      value: { token = '' },
+      value: { path = '' },
       error,
     } = await schema.validate(req.query);
     const {
       repository: { repo_name },
-      callback_url,
+      push_data: { tag },
     } = req.body;
 
     if (error)
@@ -45,11 +59,8 @@ app.post('/trigger', async (req, res) => {
         description: error,
       });
 
-    console.log({ token });
-
-    doVerify(token);
-
-    await scriptRunner({ repo_name });
+    console.log({ repo_name, args: [`${repo_name}:${tag}`, path] });
+    await scriptRunner({ repo_name, args: [`${repo_name}:${tag}`, path] });
 
     return res.json({
       state: 'success',
