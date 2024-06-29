@@ -5,16 +5,12 @@ services:
 
 
   puller:
-    image: zackprod/puller-dockerhub:latest
+    build: ?
     restart: always
     volumes:
-   #  - ./scripts:/app/scripts
-   #  - ./tokens.json:/app/tokens.json
      - /etc/:/local_etc/
      - /var/run/docker.sock:/var/run/docker.sock
      - ~/.docker/config.json:/root/.docker/config.json  # Mount Docker config
-
-
     ports:
       - '4999:4999'
 
