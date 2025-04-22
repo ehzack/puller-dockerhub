@@ -1,19 +1,18 @@
-FROM node:alpine3.17
+FROM node:20-alpine
 
-RUN echo 'http://ftp.halifax.rwth-aachen.de/alpine/v3.16/main' >> /etc/apk/repositories
-RUN echo 'http://ftp.halifax.rwth-aachen.de/alpine/v3.16/community' >> /etc/apk/repositories
-RUN apk update
-RUN apk add docker docker-cli-compose
-
+# Create a non-root user
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 
 WORKDIR /app
 
-COPY package.json package.json
+COPY package.json yarn.lock ./
 
-
-RUN yarn install
+RUN yarn install --frozen-lockfile
 
 COPY . .
+
 RUN chmod +x ./scripts/*
 
-CMD [ "yarn", "start" ]
+USER appuser
+
+CMD ["yarn", "start"]
