@@ -12,6 +12,7 @@
   "dependencies": {
     "compression": "^1.7.4",
     "cors": "^2.8.5",
+    "cross-spawn": "7.0.5",
     "dotenv": "^16.0.3",
     "express": "^4.18.2",
     "express-boom": "^3.0.0",
@@ -22,6 +23,9 @@
     "morgan": "^1.10.0",
     "path": "^0.12.7",
     "winston": "^3.17.0"
+  },
+  "resolutions": {
+    "cross-spawn": "7.0.5"
   },
   "packageManager": "yarn@1.22.22+sha512.a6b2f7906b721bba3d67d4aff083df04dad64c399707841b7acf00f6b133b7ac24255f2652fa22ae3534329dc6180534e98d17432037ff6fd140556e2bb3137e"
 }
