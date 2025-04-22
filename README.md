@@ -2,7 +2,7 @@
   <img src="https://raw.githubusercontent.com/ehzack/puller-dockerhub/master/logo.png" alt="PULLER DOCKERHUB Logo" width="120" />
   <h1 align="center">PULLER DOCKERHUB</h1>
   <p align="center">
-    A lightweight HTTP API to automate `docker pull` and `docker-compose up` on Docker Hub events.
+    A lightweight HTTP API to automate CI/CD using Docker Hub .
   </p>
   
 </p>
