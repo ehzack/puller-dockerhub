@@ -43,8 +43,6 @@ node_modules
 # Coverage
 coverage
 
-# Yarn
-yarn.lock
 
 # logs
 worker-output
