@@ -1,11 +1,8 @@
 version: "3.6"
 
 services:
-
-
-
   puller:
-    build: ?
+    build: .
     restart: always
     volumes:
      - /etc/:/local_etc/
@@ -13,7 +10,6 @@ services:
      - ~/.docker/config.json:/root/.docker/config.json  # Mount Docker config
     ports:
       - '4999:4999'
-
     environment:
       SERVER_PORT: 4999
 

@@ -45,3 +45,6 @@ coverage
 
 # Yarn
 yarn.lock
+
+# logs
+worker-output
