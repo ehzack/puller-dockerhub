@@ -1,64 +1,76 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/ehzack/puller-dockerhub/main/logo.png" alt="PULLER DOCKERHUB Logo" width="120" />
+  <img src="https://raw.githubusercontent.com/ehzack/puller-dockerhub/master/logo.png" alt="PULLER DOCKERHUB Logo" width="120" />
   <h1 align="center">PULLER DOCKERHUB</h1>
   <p align="center">
-    Automate and orchestrate Docker image pulls from Docker Hub with ease.
+    A lightweight HTTP API to automate `docker pull` and `docker-compose up` on Docker Hub events.
   </p>
-
+  
 </p>
 
 ---
 
 ## 📋 Table of Contents
 
-- [✨ Features](#-features)  
-- [🚀 Quick Start](#-rocket-quick-start)  
+- [🚀 What Is Puller?](#-what-is-puller)  
+- [✨ Key Features](#-key-features)  
+- [🚀 Quick Start](#-quick-start)  
 - [⚙️ Configuration](#️-configuration)  
   - [Environment Variables](#environment-variables)  
-  - [Compose Parameters](#compose-parameters)  
+  - [Compose Setup](#compose-setup)  
 - [📖 Usage](#-usage)  
   - [Trigger via HTTP](#trigger-via-http)  
-  - [Webhook Example](#webhook-example)  
-- [🛠️ Health & Metrics](#️-health--metrics)  
+  - [🔗 Integrate with Docker Hub](#-integrate-with-docker-hub)  
+- [🛠️ Health & Logging](#️-health--logging)  
 - [🐞 Troubleshooting](#-troubleshooting)  
 - [🤝 Contributing](#-contributing)  
 - [📄 License](#-license)  
-- [📬 Contact & Support](#-contact--support)  
+- [📬 Contact](#-contact)  
 
 ---
 
-## ✨ Features
+## 🚀 What Is Puller?
 
-- **Automated Pulls**: Instantly pull or update any Docker Hub image on demand.
-- **Webhook-Driven**: Trigger pulls via simple HTTP request or CI/CD webhook.
-- **Lightweight**: Minimal base image footprint; optimized for performance.
-- **Secure**: Runs with least privileges; binds only necessary ports.
-- **Configurable**: Environment-driven parameters for port, paths, retries, and logging.
-- **Extensible**: Easily integrate into GitHub Actions, GitLab CI, Jenkins, or custom pipelines.
+**Puller** is a minimal HTTP API service that listens for Docker Hub webhook payloads and, pulls and redeploys a specified container.
+
+It's designed to be lightweight, easy to configure, and suitable for use in CI/CD pipelines.
+
+This lets you automatically redeploy containers whenever you push a new image tag to Docker Hub, without manual intervention.
+
+---
+
+## ✨ Key Features
+
+- **Automatic Pull & Deploy**  
+  Executes `docker pull` and `docker-compose up` on-demand.  
+- **Webhook Listener**  
+  Accepts Docker Hub webhook POSTs and parses the payload for image and tag.  
+- **Configurable**  
+  Control ports, retry attempts, and service names via environment variables.  
+- **Lightweight**  
+  Small memory footprint and simple dependencies.  
+- **Secure by Default**  
+  Runs with read-only Docker socket and minimal privileges.
 
 ---
 
 ## 🚀 Quick Start
 
-1. **Clone the repository**  
+1. **Clone & Deploy**  
    ```bash
    git clone https://github.com/ehzack/puller-dockerhub.git
    cd puller-dockerhub
-   ```
-
-2. **Customize your configuration**  
-   See [Configuration](#️-configuration) below.
-
-3. **Launch with Docker Compose**  
-   ```bash
    docker-compose up -d
    ```
 
-4. **Verify**  
+2. **Configure Webhook on Docker Hub**  
+   See [Integrate with Docker Hub](#-integrate-with-docker-hub) below.
+
+3. **Push a New Tag**  
    ```bash
-   docker-compose ps
-   # Should show `puller` service running on port $SERVER_PORT
+   docker tag my-app:latest youruser/my-app:release-1.0
+   docker push youruser/my-app:release-1.0
    ```
+   Puller will automatically pull and redeploy your container.
 
 ---
 
@@ -66,14 +78,16 @@
 
 ### Environment Variables
 
-| Variable           | Default | Description                                                    |
-| ------------------ | ------- | -------------------------------------------------------------- |
-| `SERVER_PORT`      | `4999`  | HTTP port for the Puller API.                                  |
-| `PULL_RETRIES`     | `3`     | Number of retry attempts on pull failure.                      |
-| `LOG_LEVEL`        | `info`  | Logging verbosity (`debug`, `info`, `warn`, `error`).          |
-| `ALLOWED_ORIGINS`  | `*`     | CORS origins permitted to access the endpoint.                 |
+| Variable           | Default | Description                                          |
+| ------------------ | ------- | ---------------------------------------------------- |
+| `SERVER_PORT`      | `4999`  | HTTP port on which Puller listens.                   |
+| `RETRY_COUNT`      | `3`     | Number of times to retry a failed `docker pull`.     |
+| `COMPOSE_SERVICE`  | none    | (Optional) Service name for `docker-compose up`.     |
+| `LOG_LEVEL`        | `info`  | Logging level: `debug`, `info`, `warn`, `error`.     |
+| `LOG_MAX_SIZE`     | `3`     | Maximum size of log files in MB.                     |
+| `LOG_MAX_FILES`    | `3`     | Maximum number of log files to retain.               |
 
-### Compose Parameters
+### Compose Setup
 
 ```yaml
 version: "3.8"
@@ -85,12 +99,10 @@ services:
       - "${SERVER_PORT:-4999}:4999"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - /etc:/local_etc:ro                  # Optional: mount custom config/data
     environment:
       SERVER_PORT: 4999
-      PULL_RETRIES: 3
-      LOG_LEVEL: info
-      ALLOWED_ORIGINS: https://ci.example.com
+      LOG_MAX_SIZE: 3 # in MB
+      LOG_MAX_FILES: 3
 ```
 
 ---
@@ -99,87 +111,95 @@ services:
 
 ### Trigger via HTTP
 
-Send a **POST** request to trigger an image pull:
+You can manually trigger a pull & deploy:
 
 ```bash
-curl -X POST   "http://<HOST>:<PORT>/trigger"   -H "Content-Type: application/json"   -d '{
-    "image": "nginx:latest",
-    "container_name": "webserver",
-    "options": {
-      "pullPolicy": "always"
-    }
-  }'
+curl -X POST "http://<HOST>:<PORT>/trigger"      -H "Content-Type: application/json"      -d '{
+       "image": "youruser/my-app:latest",
+       "composeService": "web"
+     }'
 ```
 
-**Parameters**:
+- **`image`**: Full image reference (`<repo>:<tag>`).  
+- **`composeService`**: (Optional) Overrides `COMPOSE_SERVICE` env var.
 
-- `image` _(string, required)_: `<repository>:<tag>` on Docker Hub.
-- `container_name` _(string, optional)_: Friendly name for logging.
-- `options.pullPolicy` _(string)_: `always` | `if-not-present`.
+### 🔗 Integrate with Docker Hub
 
-### Webhook Example
+1. **Add Webhook**  
+   - Go to your Docker Hub repo ▶︎ **Settings** ▶︎ **Webhooks**.  
+   - Click **Add Webhook**, set the URL to:  
+     ```
+     http://<PULLER_HOST>:<PULLER_PORT>/trigger?path=$path$&container_name=$container_name
+      ```
+Query Parameters:
+- **$path**: The location of your docker-compose.yml file (Example: /home/user/app/docker-compose.yml)
+- **$container_name**: The name of the container you want to restart (Example: my-web-app)
 
-Integrate with GitHub Actions:
 
-```yaml
-jobs:
-  notify-puller:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Trigger Puller
-        run: |
-          curl -X POST             https://puller.example.com/trigger             -H "Authorization: Bearer ${{ secrets.PULLER_TOKEN }}"             -d '{"image":"yourimage:latest"}'
-```
+Example URL:
+- http://localhost:4999/trigger?path=/home/user/app/docker-compose.yml&container_name=web-app
+     
+
+
+2. **Configure Compose Service**  
+   Ensure your `docker-compose.yml` defines the service you want to restart:
+
+   ```yaml
+   version: "3.8"
+   services:
+     web:
+       image: youruser/my-app:latest
+       # ...
+   ```
+
+3. **Push New Image**  
+   Every `docker push` will send a webhook to Puller. It will:
+   1. Parse the payload for `repository` and `push_data.tag`.  
+   2. Run `docker pull youruser/my-app:<tag>`.  
+   3. Execute `docker-compose up -d web`.
 
 ---
 
-## 🛠️ Health & Metrics
+## 🛠️ Health & Logging
 
-- **Health Check**:  
-  `GET /health` returns `200 OK` if the service is operational.
-- **Metrics**:  
-  Exposed on `/metrics` (Prometheus format).
+- **Health Endpoint**:  
+  `GET /health` returns `200 OK` if service is healthy.  
+- **Logs**:  
+  Stream logs via Docker:  
+  ```bash
+  docker logs -f puller-dockerhub_puller_1
+  ```
 
 ---
 
 ## 🐞 Troubleshooting
 
-- **Permission Denied on Docker Socket**  
+- **Socket Permission Denied**  
   ```bash
-  chmod 660 /var/run/docker.sock
-  adduser $(whoami) docker
+  sudo chmod 660 /var/run/docker.sock
+  sudo usermod -aG docker $(whoami)
   ```
-- **Container Fails to Start**  
-  ```bash
-  docker logs puller-dockerhub_puller_1
-  ```
-- **Network Timeouts**  
-  Ensure your host can reach `registry-1.docker.io` and firewall rules permit outbound HTTPS.
+- **Unexpected Payload**  
+  Ensure Docker Hub webhook is configured with **application/json** content type.  
+- **Service Not Restarting**  
+  Confirm `COMPOSE_SERVICE` matches your service name in `docker-compose.yml`.
 
 ---
 
 ## 🤝 Contributing
 
-Your contributions are welcome!
-
-1. Fork the repository  
-2. Create a feature branch (`git checkout -b feature/YourFeature`)  
-3. Commit your changes (`git commit -m "Add awesome feature"`)  
-4. Push to your branch (`git push origin feature/YourFeature`)  
-5. Open a Pull Request  
-
-Please review our [CODE_OF_CONDUCT.md](/CODE_OF_CONDUCT.md) and [CONTRIBUTING.md](/CONTRIBUTING.md).
+We welcome your improvements and bug fixes! Please see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ---
 
 ## 📄 License
 
-This project is licensed under the **MIT License**. See the [LICENSE](LICENSE) file for details.
+This project is licensed under the **MIT License**. See [LICENSE](LICENSE).
 
 ---
 
-## 📬 Contact & Support
+## 📬 Contact
 
-- **Author**: zack
-- **Project Repo**: [github.com/ehzack/puller-dockerhub](https://github.com/ehzack/puller-dockerhub)  
-- **Issues & Feature Requests**: [GitHub Issues](https://github.com/ehzack/puller-dockerhub/issues)
+- **Author**: Zack  
+- **GitHub**: [ehzack/puller-dockerhub](https://github.com/ehzack/puller-dockerhub)  
+
