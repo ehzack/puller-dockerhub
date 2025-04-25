@@ -1,5 +1,8 @@
 FROM node:20-alpine
 
+
+RUN apk add docker docker-cli-compose
+
 # Create a non-root user
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 
